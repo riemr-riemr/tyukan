@@ -83,7 +83,9 @@ def initial_sulution(request_node, vehicle_number):  #初期解生成
 
 def initial_solution(request_number, vehicle_number, passe_max):  # グリーディ初期化
     route = [[]*1 for i in range(vehicle_number)]
-    bunpai = int((request_number/2)/vehicle_number) + 2
+    bunpai = np.zeros(vehicle_number)
+    for i in range(int(request_number/2)):
+        bunpai[i%vehicle_number] += 1
     c_copy = copy.deepcopy(c)
     riding_id = []
     passe = 0
@@ -113,11 +115,11 @@ def initial_solution(request_number, vehicle_number, passe_max):  # グリーデ
                     c_copy[j][status] = 1000
                     c_copy[status][j] = 1000
 
-            if (riyoukyaku == bunpai or passe == int(request_number/2)) and len(riding_id) == 0:
+            if (riyoukyaku == bunpai[i] or passe == int(request_number/2)) and len(riding_id) == 0:
                 break
 
 
-            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai or passe == int(request_number/2):  # 目的地へ向かう場合
+            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai[i] or passe == int(request_number/2):  # 目的地へ向かう場合
                 riding_id.remove(arrive_passe_id - int(request_number/2))  # 乗車中顧客番号から消す
                 c_copy[status][arrive_passe_id] = 1000
                 c_copy[arrive_passe_id][status] = 1000
@@ -139,7 +141,6 @@ def initial_solution(request_number, vehicle_number, passe_max):  # グリーデ
         route[i] = a_route
 
     return route
-
 
 
 def Route_cost(route):  #総移動距離の計算
@@ -585,11 +586,11 @@ def main(LOOP):
     print('探索回数', loop)
     print('taboo sizse', theta)
     print(tabu_list)
-    np.savetxt('/home/rei/ドキュメント/data_tyukan/darp20_no_swaps_hyojun.ods', data, delimiter=",")
+    np.savetxt('/home/rei/ドキュメント/data_tyukan/darp05_no_swaps_hyojun.ods', data, delimiter=",")
 
 
 if __name__ == '__main__':
-    FILENAME = 'darp20.txt'
+    FILENAME = 'darp05.txt'
     Setting_Info = Setting(FILENAME)[0]
 
     tansaku = 500

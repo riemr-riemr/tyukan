@@ -83,7 +83,9 @@ def initial_sulution(request_node, vehicle_number):  #初期解生成
 
 def initial_solution(request_number, vehicle_number, passe_max):  # グリーディ初期化
     route = [[]*1 for i in range(vehicle_number)]
-    bunpai = int((request_number/2)/vehicle_number) + 2
+    bunpai = np.zeros(vehicle_number)
+    for i in range(int(request_number/2)):
+        bunpai[i%vehicle_number] += 1
     c_copy = copy.deepcopy(c)
     riding_id = []
     passe = 0
@@ -113,11 +115,11 @@ def initial_solution(request_number, vehicle_number, passe_max):  # グリーデ
                     c_copy[j][status] = 1000
                     c_copy[status][j] = 1000
 
-            if (riyoukyaku == bunpai or passe == int(request_number/2)) and len(riding_id) == 0:
+            if (riyoukyaku == bunpai[i] or passe == int(request_number/2)) and len(riding_id) == 0:
                 break
 
 
-            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai or passe == int(request_number/2):  # 目的地へ向かう場合
+            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai[i] or passe == int(request_number/2):  # 目的地へ向かう場合
                 riding_id.remove(arrive_passe_id - int(request_number/2))  # 乗車中顧客番号から消す
                 c_copy[status][arrive_passe_id] = 1000
                 c_copy[arrive_passe_id][status] = 1000
@@ -271,8 +273,8 @@ def penalty_sum(route, requestnode): #係数ありの評価関数、係数、係
         d_s = d_s + d_s_s
         t_s = t_s + ride_time_penalty(ROUTE_TIME_info[2])
 
-    penalty = 50 * q_s + 50 * d_s + 20 * t_s + 40 * h_s
-    no_penalty = c_s + q_s + d_s + t_s + h_s
+    penalty = 20 * q_s + 20 * d_s + 10 * t_s + 20 * h_s
+    no_penalty = c_s + 20 * q_s + 20 * d_s + 10 * t_s + 20 * h_s
     parameta[0] = q_s
     parameta[1] = d_s
     parameta[2] = t_s
@@ -292,7 +294,7 @@ def penalty_sum_route_k(route_k, requestnode):  #係数ありの評価関数(1�
     d_s += d_s_s
     t_s += ride_time_penalty(ROUTE_TIME_info[2])
 
-    penalty = c_s + 50 * q_s + 50 * d_s + 20 * t_s
+    penalty = c_s + 20 * q_s + 20 * d_s + 10 * t_s
     return penalty
 
 
