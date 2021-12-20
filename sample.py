@@ -83,7 +83,9 @@ def initial_sulution(request_node, vehicle_number):  #初期解生成
 
 def initial_solution(request_number, vehicle_number, passe_max):  # グリーディ初期化
     route = [[]*1 for i in range(vehicle_number)]
-    bunpai = int((request_number/2)/vehicle_number) + 2
+    bunpai = np.zeros(vehicle_number)
+    for i in range(int(request_number/2)):
+        bunpai[i%vehicle_number] += 1
     c_copy = copy.deepcopy(c)
     riding_id = []
     passe = 0
@@ -113,11 +115,11 @@ def initial_solution(request_number, vehicle_number, passe_max):  # グリーデ
                     c_copy[j][status] = 1000
                     c_copy[status][j] = 1000
 
-            if (riyoukyaku == bunpai or passe == int(request_number/2)) and len(riding_id) == 0:
+            if (riyoukyaku == bunpai[i] or passe == int(request_number/2)) and len(riding_id) == 0:
                 break
 
 
-            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai or passe == int(request_number/2):  # 目的地へ向かう場合
+            if next_dis_dis < next_passe_dis or len(riding_id) == passe_max or  riyoukyaku == bunpai[i] or passe == int(request_number/2):  # 目的地へ向かう場合
                 riding_id.remove(arrive_passe_id - int(request_number/2))  # 乗車中顧客番号から消す
                 c_copy[status][arrive_passe_id] = 1000
                 c_copy[arrive_passe_id][status] = 1000
@@ -257,7 +259,7 @@ def newRoute(route, requestnode, neighbour):  #
 
 
 def penalty_sum(route, requestnode): #係数ありの評価関数、係数、係数なしの評価関数を返す(全体)
-    parameta = np.zeros(4)
+    parameta = np.zeros(3)
     c_s = Route_cost(route)
     q_s = capacity(route)  #キャパオーバー
     d_s = 0                #1台あたりの移動時間違反
@@ -271,13 +273,12 @@ def penalty_sum(route, requestnode): #係数ありの評価関数、係数、係
         d_s = d_s + d_s_s
         t_s = t_s + ride_time_penalty(ROUTE_TIME_info[2])
 
-    penalty = q_s + d_s + t_s + h_s
-    no_penalty = c_s + q_s + d_s + t_s + h_s
+    penalty = c_s+keisu[0] * q_s + keisu[1] * d_s + keisu[2] * t_s + h_s
+    no_penalty = penalty
     parameta[0] = q_s
     parameta[1] = d_s
     parameta[2] = t_s
-    parameta[3] = h_s
-    return penalty, parameta, no_penalty
+    return penalty, parameta, no_penalty, h_s
 
 
 def penalty_sum_route_k(route_k, requestnode):  #係数ありの評価関数(1台あたり)
@@ -292,7 +293,7 @@ def penalty_sum_route_k(route_k, requestnode):  #係数ありの評価関数(1�
     d_s += d_s_s
     t_s += ride_time_penalty(ROUTE_TIME_info[2])
 
-    penalty = c_s + q_s + d_s + t_s
+    penalty = c_s + keisu[0]* q_s + keisu[1] * d_s + keisu[2] * t_s
     return penalty
 
 
@@ -387,10 +388,17 @@ def insert_route_ver2(route,requestnode,riyoukyakunumber,new_vehiclenumber):  #�
 
 def keisu_update(delta, parameta):
     for i in range(len(parameta)):
-        if parameta[i] > 0:
-            keisu[i] = keisu[i] * (1 + delta)
+        if parameta[i] > 0 :
+            if keisu[i] <100:
+                keisu[i] = keisu[i] * (1 + delta)
         else:
             keisu[i] = keisu[i] / (1 + delta)
+            if i == 0 or i == 2:
+                if keisu[i] <2:
+                    keisu[i] =2
+            else:
+                if keisu[i] <1:
+                    keisu[i] =1
 
 
 def tabu_update(theta, tabu_list, neighbour):
@@ -493,7 +501,7 @@ def swap(route, requestnode, taboo_list, best_neighbour):
             check = tabu_check(route[max_no][i], min_no, taboo_list)
             if not check > 0:
                 NEWroute = copy.deepcopy(newRoute_ver2(route, requestnode, change_no, max_no, min_no))
-                if change == [] or penalty_sum(NEWroute, requestnode)[2] < penalty_sum(change, requestnode)[2]:
+                if change == [] or penalty_sum(NEWroute, requestnode)[0] < penalty_sum(change, requestnode)[0]:
                     change = copy.deepcopy(NEWroute)
                     best_neighbour[0] = change_no
                     best_neighbour[1] = max_no
@@ -501,21 +509,28 @@ def swap(route, requestnode, taboo_list, best_neighbour):
     if change == []:
         change = copy.deepcopy(route)
 
-
     return change, best_neighbour
+
+
+def min_max(route):
+    max = 0
+    for i in range(len(route)):
+        if max <= route_k_cost_sum(route[i]):
+            max = route_k_cost_sum(route[i])
+    return max
 
 
 def main(LOOP):
     equ = 0
     data = np.zeros((LOOP, 3))
-    initial_Route = initial_solution(n, m, Q_max)  # 初期解生成
+    initial_Route = initial_sulution(n, m)  # 初期解生成
     syoki = copy.deepcopy(initial_Route)
     opt = penalty_sum(initial_Route, n)[2]
     test = opt
     loop = 0  # メインのループ回数
     parameta_loop = 0  # パラメーター調整と集中化のループ回数(ループ回数は10回)
     delta = 0.5
-    theta = int(n/4*(m-1)) # タブーリストの大きさ
+    theta = int(7.5 * math.log10(n/2)) # タブーリストの大きさ
     kinsi = theta
     tabu_list = np.zeros((theta, 3)) - 1
     kinbo_cost = float('inf')
@@ -534,12 +549,12 @@ def main(LOOP):
                     NewRoute = copy.deepcopy(newRoute_ver2(initial_Route,n,i,old_vehiclenumber,j))
                 else:
                     continue
-                if penalty_sum(NewRoute, n)[2] < kinbo_cost:
+                if penalty_sum(NewRoute, n)[0] < kinbo_cost:
                     best_neighbour[0] = i
                     best_neighbour[1] = old_vehiclenumber
                     NextRoute = copy.deepcopy(NewRoute)
-                    kinbo_cost = penalty_sum(NextRoute, n)[2]
-                    if kinbo_cost < penalty_sum(initial_Route, n)[2]:
+                    kinbo_cost = penalty_sum(NextRoute, n)[0]
+                    if kinbo_cost < penalty_sum(initial_Route, n)[0]:
                         skip = 1
                         break
             if skip == 1:
@@ -548,7 +563,7 @@ def main(LOOP):
         if kinbo_cost <= opt:
             opt = kinbo_cost
             saiteki_route = copy.deepcopy(NextRoute)
-            saiteki = penalty_sum(saiteki_route, n)[2]
+            saiteki = penalty_sum(saiteki_route, n)[0]
 
         tabu_update_ver2(kinsi, tabu_list, best_neighbour)
         kinbo_cost = float('inf')
@@ -556,23 +571,23 @@ def main(LOOP):
         initial_Route = copy.deepcopy(NextRoute)
 
         parameta_loop += 1
-        if parameta_loop == 100:
-            delta = np.random.uniform(0, 0.5)
+        if parameta_loop == 10:
+            delta = np.random.uniform(0.1, 0.5)
             parameta_loop = 0
 
         swap_route = copy.deepcopy(swap(initial_Route, n, tabu_list, best_neighbour))
         initial_Route = copy.deepcopy(swap_route[0])
         tabu_update_ver2(kinsi, tabu_list, swap_route[1])
-        data[loop][2] = penalty_sum(initial_Route, n)[2]
-
-        if penalty_sum(initial_Route, n)[2] <= penalty_sum(saiteki_route, n)[2]:
+        #data[loop][2] = penalty_sum(initial_Route, n)[2]
+        keisu_update(delta, penalty_sum(NextRoute, n)[1])
+        if penalty_sum(initial_Route, n)[0] <= penalty_sum(saiteki_route, n)[0]:
             saiteki_route = copy.deepcopy(initial_Route)
-            saiteki = penalty_sum(initial_Route, n)[2]
+            saiteki = penalty_sum(initial_Route, n)[0]
             opt = saiteki
 
-        data[loop][0] = opt
-        data[loop][1] = time.time() - t1
-        if data[loop][0] == data[loop-1][0]:
+        data[loop][1] = opt
+        data[loop][0] = time.time() - t1
+        if data[loop][1] == data[loop-1][1]:
             equ += 1
         else:
             equ = 0
@@ -584,18 +599,21 @@ def main(LOOP):
     print(saiteki_route)
     print(test, opt)
     print(saiteki)
-    print(saiteki - penalty_sum(saiteki_route, n)[0])
+    print(penalty_sum(saiteki_route,n)[3])
+    print(saiteki - penalty_sum(saiteki_route, n)[3])
     print(penalty_sum(saiteki_route, n)[1])
     print(keisu)
     print(FILENAME)
     print('探索回数', loop)
     print('taboo sizse', theta)
-    print(tabu_list)
-    np.savetxt('/home/rei/ドキュメント/data_tyukan/sample.ods', data, delimiter=",")
+    print('最大経路長', min_max(saiteki_route))
+    np.savetxt('/home/rei/ドキュメント/data_tyukan/'+FILENAME+'sample.ods', data, delimiter=",")
+
+    return saiteki - penalty_sum(saiteki_route, n)[3], min_max(saiteki_route), penalty_sum(saiteki_route, n)[1]
 
 
 if __name__ == '__main__':
-    FILENAME = 'darp20.txt'
+    FILENAME = 'darp03.txt'
     Setting_Info = Setting(FILENAME)[0]
 
     tansaku = 500
@@ -606,6 +624,10 @@ if __name__ == '__main__':
     Q_max = Setting_Info[4]  # 車両の最大容量 global変数 capacity関数で使用
     T_max = Setting_Info[8]  # 一台当たりの最大移動時間
     L_max = Setting_Info[9]  # 一人あたりの最大移動時間
+    pe_sum = 0
+    ke_sum = 0
+    sa_sum = 0
+    a_sum = [0, 0, 0]
 
     noriori = np.zeros(n + 1, dtype=int, order='C')
     noriori = Setting(FILENAME)[4]  # global変数  capacity関数で使用
@@ -615,9 +637,20 @@ if __name__ == '__main__':
     c = np.zeros((n + 1, n + 1), dtype=float, order='C')
     c = Setting(FILENAME)[3]  # 各ノード間のコスト
 
-    keisu = np.ones(4)
-    t1 = time.time()
-    main(tansaku)
+    for yakiniku in range(10):
+        keisu = [2, 1, 2]
+        t1 = time.time()
+        copy_a = copy.deepcopy(main(tansaku))
+        t2 = time.time()
+        print(f"time:{t2 - t1}")
+        pe_sum += copy_a[0]
+        sa_sum += copy_a[1]
+        a_sum += copy_a[2]
+        ke_sum += t2 - t1
 
-    t2 = time.time()
-    print(f"time:{t2 - t1}")
+    print('目的関数地平均',pe_sum/10)
+    print('計算時間平均',ke_sum/10)
+    print('最大経路長平均',sa_sum/10)
+    print('ペナルティ合計',a_sum)
+
+    #keisu_update
