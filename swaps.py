@@ -607,7 +607,7 @@ def main(LOOP):
 
 
 if __name__ == '__main__':
-    FILENAME = 'darp03.txt'
+    FILENAME = 'darp02.txt'
     Setting_Info = Setting(FILENAME)[0]
 
     tansaku = 500

@@ -272,7 +272,7 @@ def penalty_sum(route, requestnode): #係数ありの評価関数、係数、係
         t_s = t_s + ride_time_penalty(ROUTE_TIME_info[2])
 
     penalty = keisu[0] * q_s + keisu[1] * d_s + keisu[2] * t_s
-    no_penalty = c_s + keisu[0] * q_s + keisu[1]*d_s + keisu[2]*t_s
+    no_penalty = c_s + penalty
     parameta[0] = q_s
     parameta[1] = d_s
     parameta[2] = t_s
@@ -575,11 +575,6 @@ def main(LOOP):
             parameta_loop = 0
         keisu_update(delta, penalty_sum(NextRoute, n)[1])
 
-        if penalty_sum(initial_Route, n)[2] <= penalty_sum(saiteki_route, n)[2]:
-            saiteki_route = copy.deepcopy(initial_Route)
-            saiteki = penalty_sum(initial_Route, n)[2]
-            opt = saiteki
-
         data[loop][0] = opt
         data[loop][1] = time.time() - t1
         if data[loop][0] == data[loop-1][0]:
@@ -587,7 +582,7 @@ def main(LOOP):
         else:
             equ = 0
         loop += 1
-        if loop == LOOP or equ == 50:
+        if loop == LOOP or (equ == 50 and penalty_sum(saiteki_route, n)[0] == 0):
             break
 
     print(syoki)

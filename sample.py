@@ -273,11 +273,12 @@ def penalty_sum(route, requestnode): #係数ありの評価関数、係数、係
         d_s = d_s + d_s_s
         t_s = t_s + ride_time_penalty(ROUTE_TIME_info[2])
 
-    penalty = c_s+keisu[0] * q_s + keisu[1] * d_s + keisu[2] * t_s + h_s
-    no_penalty = penalty
+    penalty = keisu[0] * q_s + keisu[1] * d_s + keisu[2] * t_s
+    no_penalty = c_s + penalty + h_s
     parameta[0] = q_s
     parameta[1] = d_s
     parameta[2] = t_s
+
     return penalty, parameta, no_penalty, h_s
 
 
@@ -501,7 +502,7 @@ def swap(route, requestnode, taboo_list, best_neighbour):
             check = tabu_check(route[max_no][i], min_no, taboo_list)
             if not check > 0:
                 NEWroute = copy.deepcopy(newRoute_ver2(route, requestnode, change_no, max_no, min_no))
-                if change == [] or penalty_sum(NEWroute, requestnode)[0] < penalty_sum(change, requestnode)[0]:
+                if change == [] or penalty_sum(NEWroute, requestnode)[2] < penalty_sum(change, requestnode)[2]:
                     change = copy.deepcopy(NEWroute)
                     best_neighbour[0] = change_no
                     best_neighbour[1] = max_no
@@ -549,12 +550,12 @@ def main(LOOP):
                     NewRoute = copy.deepcopy(newRoute_ver2(initial_Route,n,i,old_vehiclenumber,j))
                 else:
                     continue
-                if penalty_sum(NewRoute, n)[0] < kinbo_cost:
+                if penalty_sum(NewRoute, n)[2] < kinbo_cost:
                     best_neighbour[0] = i
                     best_neighbour[1] = old_vehiclenumber
                     NextRoute = copy.deepcopy(NewRoute)
-                    kinbo_cost = penalty_sum(NextRoute, n)[0]
-                    if kinbo_cost < penalty_sum(initial_Route, n)[0]:
+                    kinbo_cost = penalty_sum(NextRoute, n)[2]
+                    if kinbo_cost < penalty_sum(initial_Route, n)[2]:
                         skip = 1
                         break
             if skip == 1:
@@ -563,7 +564,7 @@ def main(LOOP):
         if kinbo_cost <= opt:
             opt = kinbo_cost
             saiteki_route = copy.deepcopy(NextRoute)
-            saiteki = penalty_sum(saiteki_route, n)[0]
+            saiteki = penalty_sum(saiteki_route, n)[2]
 
         tabu_update_ver2(kinsi, tabu_list, best_neighbour)
         kinbo_cost = float('inf')
@@ -580,9 +581,9 @@ def main(LOOP):
         tabu_update_ver2(kinsi, tabu_list, swap_route[1])
         #data[loop][2] = penalty_sum(initial_Route, n)[2]
         keisu_update(delta, penalty_sum(NextRoute, n)[1])
-        if penalty_sum(initial_Route, n)[0] <= penalty_sum(saiteki_route, n)[0]:
+        if penalty_sum(initial_Route, n)[2] <= penalty_sum(saiteki_route, n)[2]:
             saiteki_route = copy.deepcopy(initial_Route)
-            saiteki = penalty_sum(initial_Route, n)[0]
+            saiteki = penalty_sum(initial_Route, n)[2]
             opt = saiteki
 
         data[loop][1] = opt
@@ -592,7 +593,7 @@ def main(LOOP):
         else:
             equ = 0
         loop += 1
-        if loop == LOOP or equ == 50:
+        if loop == LOOP or (equ == 50 and penalty_sum(saiteki_route, n)[0] == 0):
             break
 
     print(syoki)
@@ -613,7 +614,7 @@ def main(LOOP):
 
 
 if __name__ == '__main__':
-    FILENAME = 'darp03.txt'
+    FILENAME = 'darp05.txt'
     Setting_Info = Setting(FILENAME)[0]
 
     tansaku = 500
